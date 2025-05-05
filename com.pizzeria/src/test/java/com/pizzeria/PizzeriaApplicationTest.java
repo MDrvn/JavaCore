@@ -4,8 +4,11 @@ import junit.framework.Test;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
 
+/**
+ * Unit test for simple App.
+ */
 public class PizzeriaApplicationTest
-    extends TestCase
+        extends TestCase
 {
 
     public PizzeriaApplicationTest(String testName )
@@ -18,6 +21,7 @@ public class PizzeriaApplicationTest
     {
         return new TestSuite( PizzeriaApplicationTest.class );
     }
+
 
     public void testApp()
     {
