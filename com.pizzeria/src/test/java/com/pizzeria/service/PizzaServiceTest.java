@@ -1,103 +1,73 @@
 package com.pizzeria.service;
 
+import com.pizzeria.dto.PizzaDTO;
+import com.pizzeria.exception.ResourceNotFoundException;
 import com.pizzeria.model.Pizza;
 import com.pizzeria.repository.PizzaRepository;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
+import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
-@SpringBootTest
-@Transactional
-@AutoConfigureMockMvc
+@ExtendWith(MockitoExtension.class)
 class PizzaServiceTest {
-    @Autowired
+
+    @Mock
     private PizzaRepository pizzaRepository;
 
-    @Autowired
-    private MockMvc mockMvc;
+    @InjectMocks
+    private PizzaService pizzaService;
 
     @Test
-    void testCreatePizza() {
+    void createPizza_ShouldSaveAndReturnPizza() {
         Pizza pizza = new Pizza();
-        pizza.setName("Pepperoni");
-        pizza.setPrice(new BigDecimal("12.99"));
-        pizza.setQuantity(10);
+        when(pizzaRepository.save(any(Pizza.class))).thenReturn(pizza);
 
-        Pizza saved = pizzaRepository.save(pizza);
-        assertNotNull(saved.getId());
+        Pizza result = pizzaService.createPizza(pizza);
+
+        assertNotNull(result);
+        verify(pizzaRepository).save(pizza);
     }
 
     @Test
-    public void createOrder() throws Exception {
-        String orderRequest = """
-                {
-                    "customerId": 0,
-                    "items": []
-                }""";
+    void updatePizza_ShouldUpdateExistingPizza() {
+        Pizza existing = new Pizza();
+        existing.setId(1L);
+        when(pizzaRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(pizzaRepository.save(any(Pizza.class))).thenReturn(existing);
 
-        mockMvc.perform(post("/api/orders")
-                        .content(orderRequest)
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andDo(print());
+        PizzaDTO dto = new PizzaDTO();
+        dto.setName("New Name");
+        dto.setPrice(BigDecimal.valueOf(15.99));
+
+        Pizza result = pizzaService.updatePizza(1L, dto);
+
+        assertEquals("New Name", result.getName());
+        assertEquals(BigDecimal.valueOf(15.99), result.getPrice());
     }
 
     @Test
-    public void getAllPizzas() throws Exception {
-        mockMvc.perform(get("/api/pizzas"))
-                .andExpect(status().isOk())
-                .andDo(print());
+    void updatePizza_ShouldThrowWhenNotFound() {
+        when(pizzaRepository.findById(anyLong())).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () ->
+                pizzaService.updatePizza(999L, new PizzaDTO()));
     }
 
     @Test
-    public void getAllOrders() throws Exception {
-        mockMvc.perform(get("/api/orders"))
-                .andExpect(status().isOk())
-                .andDo(print());
-    }
+    void softDelete_ShouldMarkAsDeleted() {
+        Pizza pizza = new Pizza();
+        when(pizzaRepository.findById(1L)).thenReturn(Optional.of(pizza));
 
-    @Test
-    public void createPizza() throws Exception {
-        String pizzaDTO = """
-                {
-                    "name": "",
-                    "description": "",
-                    "price": {},
-                    "quantity": 0
-                }""";
+        pizzaService.softDeletePizza(1L);
 
-        mockMvc.perform(post("/api/pizzas")
-                        .content(pizzaDTO)
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andDo(print());
-    }
-
-    @Test
-    public void deletePizza() throws Exception {
-        mockMvc.perform(delete("/api/pizzas/{0}", "0"))
-                .andExpect(status().isOk())
-                .andDo(print());
+        assertTrue(pizza.isDeleted());
+        verify(pizzaRepository).save(pizza);
     }
 }
